@@ -1,0 +1,27 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "description": "",
+  "main": "user_info.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cakefinancials/scripts.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/cakefinancials/scripts/issues"
+  },
+  "homepage": "https://github.com/cakefinancials/scripts#readme",
+  "dependencies": {
+    "bluebird": "^3.5.1",
+    "co": "^4.6.0",
+    "log-update": "^2.3.0",
+    "openpgp": "^3.0.4",
+    "single-line-log": "^1.1.2"
+  }
+}
