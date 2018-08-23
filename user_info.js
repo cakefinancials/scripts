@@ -134,15 +134,6 @@ const USER_COMMANDS = [
     {
         name: 'VIEW PLAID TRANSACTIONS',
         fn: async function viewPlaidTransaction({ cognitoIdenity }) {
-            const plaid = require('plaid');
-
-            var plaidClient = new plaid.Client(
-                plaidClientId,
-                plaidSecret,
-                plaidPublicKey,
-                plaid.environments[plaidEnv]
-            );
-
             const contents = getS3Contents({ s3Key: `s3://cake-financials-user-data/${cognitoIdenity}/user_plaid_data.json` });
             if (!contents) {
                 return [ 'This user has not linked their bank account' ];
@@ -156,6 +147,7 @@ const USER_COMMANDS = [
 
             const lines = [ ];
 
+            const plaidClient = getPlaidClient();
             try {
                 const transactionsResponse = await plaidClient.getTransactions(
                     plaidAccessToken,
@@ -215,13 +207,11 @@ const USER_COMMANDS = [
                 return [ 'This user has not linked their bank account' ];
             }
 
-            const { bankAccountToken } = JSON.parse(contents);
-
             const amountToCharge = readlineSync.question(
                 'How much do you want to charge? '
             );
 
-            const parsedAmountToCharge = parseFloat(amountToCharge).toFixed(2);
+            const parsedAmountToCharge = parseFloat(parseFloat(amountToCharge).toFixed(2));
 
             const answer = readlineSync.question(`Are you sure you want to charge ${parsedAmountToCharge}? Type 'y' for yes: `);
 
@@ -231,11 +221,16 @@ const USER_COMMANDS = [
             } else {
                 // charge with stripe
                 lines.push('Charging...');
-                const stripe = require('stripe')(stripeSecret);
-
-                const chargeInCents = parsedAmountToCharge * 100;
-
                 try {
+                    const stripe = require('stripe')(stripeSecret);
+                    const { plaidAccessToken, plaidAccountId } = JSON.parse(contents);
+                    const plaidClient = getPlaidClient();
+
+                    const response = await plaidClient.createStripeToken(plaidAccessToken, plaidAccountId);
+                    const bankAccountToken = response.stripe_bank_account_token;
+
+                    const chargeInCents = Math.floor(parsedAmountToCharge * 100);
+
                     const charge = await stripe.charges.create({
                         amount: chargeInCents,
                         currency: 'usd',
@@ -243,8 +238,7 @@ const USER_COMMANDS = [
                         description: `Charge for Cake services ending ${moment().format('MMMM Do YYYY')}`
                     });
 
-                    lines.push('Succesfully charged');
-                    console.log(JSON.stringify(charge, null, 4));
+                    lines.push(`Succesfully charged. Charge id: ${charge.id}`);
                 } catch (err) {
                     console.log('Error while charging, dumping out the error: ', err);
                 }
@@ -253,5 +247,18 @@ const USER_COMMANDS = [
         }
     }
 ];
+
+const getPlaidClient = () => {
+    const plaid = require('plaid');
+
+    var plaidClient = new plaid.Client(
+        plaidClientId,
+        plaidSecret,
+        plaidPublicKey,
+        plaid.environments[plaidEnv]
+    );
+
+    return plaidClient;
+};
 
 main().then(() => console.log('done')).catch(console.error);
